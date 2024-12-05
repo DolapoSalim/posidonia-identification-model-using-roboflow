@@ -22,3 +22,124 @@ from IPython.display import display, Image
 from IPython.display import Image
 
 display(Image(filename='runs/detect/predict/dog.jpeg', height=600))
+
+model = YOLO(f'{HOME}/yolov8n.pt')
+results = model.predict(source='https://media.roboflow.com/notebooks/examples/dog.jpeg', conf=0.25)
+
+results[0].boxes.xyxy
+
+results[0].boxes.conf
+
+results[0].boxes.cls
+
+!mkdir -p {HOME}/datasets
+%cd {HOME}/datasets
+
+!pip install roboflow
+
+from roboflow import Roboflow
+rf = Roboflow(api_key="9chSgJ0GtaVF8cNngBBd")
+project = rf.workspace("recognition-for-posidonia").project("posidonia_mixdataset-ylccg")
+version = project.version(1)
+dataset = version.download("yolov8")
+
+
+%cd {HOME}
+
+!yolo task=detect mode=train model=yolov8s.pt data={dataset.location}/data.yaml epochs=25 imgsz=800 plots=True
+
+%cd {HOME}
+Image(filename=f'{HOME}/runs/detect/train/confusion_matrix.png', width=600)
+
+%cd {HOME}
+Image(filename=f'{HOME}/runs/detect/train/results.png', width=600)
+
+
+%cd {HOME}
+Image(filename=f'{HOME}/runs/detect/train/val_batch0_pred.jpg', width=600)
+
+%cd {HOME}
+
+!yolo task=detect mode=val model={HOME}/runs/detect/train/weights/best.pt data={dataset.location}/data.yaml
+
+%cd {HOME}
+!yolo task=detect mode=predict model={HOME}/runs/detect/train/weights/best.pt conf=0.25 source={dataset.location}/test/images save=True
+
+import glob
+from IPython.display import Image, display
+
+# Define the base path where the folders are located
+base_path = '/content/runs/detect/'
+
+# List all directories that start with 'predict' in the base path
+subfolders = [os.path.join(base_path, d) for d in os.listdir(base_path)
+              if os.path.isdir(os.path.join(base_path, d)) and d.startswith('predict')]
+
+# Find the latest folder by modification time
+latest_folder = max(subfolders, key=os.path.getmtime)
+
+image_paths = glob.glob(f'{latest_folder}/*.jpg')[:3]
+
+# Display each image
+for image_path in image_paths:
+    display(Image(filename=image_path, width=600))
+    print("\n")
+
+project.version(dataset.version).deploy(model_type="yolov8", model_path=f"{HOME}/runs/detect/train/")
+
+# Run inference on your model on a persistent, auto-scaling, cloud API
+
+# Load model
+model = project.version(dataset.version).model
+assert model, "Model deployment is still loading"
+
+# Choose a random test image
+import os, random
+test_set_loc = dataset.location + "/test/images/"
+random_test_image = random.choice(os.listdir(test_set_loc))
+print("running inference on " + random_test_image)
+
+# Remove the 'overlap' argument
+pred = model.predict(test_set_loc + random_test_image, confidence=40).json()  
+pred
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
+
+# Assuming 'pred' contains your JSON prediction results and 
+# 'test_set_loc + random_test_image' is the path to your image
+
+# Load the image
+img = Image.open(test_set_loc + random_test_image)
+
+# Create a figure and axes
+fig, ax = plt.subplots(1)
+
+# Display the image
+ax.imshow(img)
+
+# Iterate through the predictions and draw bounding boxes
+# Access the prediction values within the 'predictions' list
+for obj in pred['predictions']:  # This is the changed line
+    # Extract bounding box coordinates and other information
+    x = obj['x']
+    y = obj['y']
+    width = obj['width']
+    height = obj['height']
+    confidence = obj['confidence']
+    class_name = obj['class']
+
+    # Create a rectangle patch for the bounding box
+    rect = patches.Rectangle((x, y), width, height, linewidth=2, edgecolor='r', facecolor='none')
+
+    # Add the bounding box to the axes
+    ax.add_patch(rect)
+
+    # Add text label for class and confidence
+    label = f'{class_name}: {confidence:.2f}'
+    ax.text(x, y, label, color='r', fontsize=8, backgroundcolor='w')
+
+# Show the plot
+plt.show()
+

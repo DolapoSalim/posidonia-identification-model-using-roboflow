@@ -1,0 +1,24 @@
+import os
+HOME = os.getcwd()
+print(HOME)
+
+# Pip install method (recommended)
+
+!pip install ultralytics==8.2.103 -q
+
+from IPython import display
+display.clear_output()
+
+import ultralytics
+ultralytics.checks()
+
+from ultralytics import YOLO
+
+from IPython.display import display, Image
+
+%cd {HOME}
+!yolo task=detect mode=predict model=yolov8n.pt conf=0.25 source='https://media.roboflow.com/notebooks/examples/dog.jpeg' save=True
+
+from IPython.display import Image
+
+display(Image(filename='runs/detect/predict/dog.jpeg', height=600))

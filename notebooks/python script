@@ -38,7 +38,7 @@ results[0].boxes.cls
 !pip install roboflow
 
 from roboflow import Roboflow
-rf = Roboflow(api_key="9chSgJ0GtaVF8cNngBBd")
+rf = Roboflow(api_key="d")
 project = rf.workspace("recognition-for-posidonia").project("posidonia_mixdataset-ylccg")
 version = project.version(1)
 dataset = version.download("yolov8")
